@@ -23,7 +23,7 @@
  */
 
 
-#include <PCD8544.h>
+#include "D:\electronic load and lab ps\pcd8544\PCD8544.h"
 
 
 static const byte sensorPin = 0;
@@ -48,13 +48,6 @@ static const byte thermometer[] = { 0x00, 0x00, 0x48, 0xfe, 0x01, 0xfe, 0x00, 0x
 
 static PCD8544 lcd;
 
-int Vout;
-char* charTc ;
-float R1 = 10000; //otpornost na sobnoj temperaturi 10K ili 10000 oma
-float R2, Tk, Tc;
-float Ac = 1.009249522e-03, Bc = 2.378405444e-04, Cc = 2.019202697e-07;
-char charBuffer[10];
-
 
 void setup() {
   lcd.begin(LCD_WIDTH, LCD_HEIGHT);
@@ -67,7 +60,7 @@ void setup() {
   // The internal 1.1V reference provides for better
   // resolution from the LM35, and is also more stable
   // when powered from either a battery or USB...
-  //analogReference(INTERNAL);
+  analogReference(INTERNAL);
 }
 
 
@@ -77,17 +70,8 @@ void loop() {
   
   digitalWrite(ledPin, HIGH);
 
-  Vout = analogRead(sensorPin);
-  R2 = R1 * (1023.0 / (float)Vout - 1.0); // konvertovanje iz analogne u digitalnu
-  Tk = (1.0 / (Ac + Bc*log(R2) + Cc*log(R2)*log(R2)*log(R2))); // temperatura u Kelvinima (K)
-  Tc = Tk - 273.15; //temperatura u stepenima Celzijusa
-
-  charTc = dtostrf(Tc, 3, 2, charBuffer);
- 
-
-
   // Read the temperature (in celsius)...
-  float temp = Tc;//(1.1 * analogRead(sensorPin) * 100.0) / 1024.0;
+  float temp = (1.1 * analogRead(sensorPin) * 100.0) / 1024.0;
   
   // Print the temperature (using the custom "degrees" symbol)...
   lcd.setCursor(0, 0);

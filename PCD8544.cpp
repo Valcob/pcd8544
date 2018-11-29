@@ -224,38 +224,48 @@ size_t PCD8544::write(uint8_t chr)
         return 0;
     }
 
-    const uint8_t *glyph;
-    uint8_t pgm_buffer[5];
+    uint8_t textHeight       = readFontData(fontData, HEIGHT_POS);
+    uint8_t firstChar        = readFontData(fontData, FIRST_CHAR_POS);
+    uint16_t sizeOfJumpTable = readFontData(fontData, CHAR_NUM_POS)  * JUMPTABLE_BYTES;
+    
+    if (chr >= firstChar) {
+      byte charCode = chr - firstChar;
+      // 4 Bytes per char 
+      byte msbJumpToChar    = readFontData( fontData, JUMPTABLE_START + charCode * JUMPTABLE_BYTES );                  // MSB  \ JumpAddress
+      byte lsbJumpToChar    = readFontData( fontData, JUMPTABLE_START + charCode * JUMPTABLE_BYTES + JUMPTABLE_LSB);   // LSB /
+      byte charByteSize     = readFontData( fontData, JUMPTABLE_START + charCode * JUMPTABLE_BYTES + JUMPTABLE_SIZE);  // Size
+      byte currentCharWidth = readFontData( fontData, JUMPTABLE_START + charCode * JUMPTABLE_BYTES + JUMPTABLE_WIDTH); // Width
 
-    if (chr >= ' ') {
-        // Regular ASCII characters are kept in flash to save RAM...
-        memcpy_P(pgm_buffer, &charset[chr - ' '], sizeof(pgm_buffer));
-        glyph = pgm_buffer;
-    } else {
-        // Custom glyphs, on the other hand, are stored in RAM...
-        if (this->custom[chr]) {
-            glyph = this->custom[chr];
-        } else {
-            // Default to a space character if unset...
-            memcpy_P(pgm_buffer, &charset[0], sizeof(pgm_buffer));
-            glyph = pgm_buffer;
+      // Test if the char is drawable
+      if (!(msbJumpToChar == 255 && lsbJumpToChar == 255)) {
+        // Get the position of the char data
+        uint16_t charDataPosition = JUMPTABLE_START + sizeOfJumpTable + ((msbJumpToChar << 8) + lsbJumpToChar);
+  
+          //get number of lines from font height
+        uint8_t lines = (int) ceil(textHeight / 8.0);
+
+        for(uint8_t j=0; j < lines; j++){
+            // Update the cursor position...            
+            this->send(PCD8544_CMD, 0x40 | ((this->line + j) % (this->height/8)) );
+            this->send(PCD8544_CMD, 0x80 | this->column);
+            //((this->line + j) % this->height) 
+            for (uint16_t i = 0; i < currentCharWidth; i++) {
+                byte currentByte = readFontData(fontData, charDataPosition + i + j * currentCharWidth);
+                this->send(PCD8544_DATA, this->inverse_output ? ~currentByte : currentByte);
+                yield();
+            }
         }
+      }      
+        // Update the cursor position...
+        this->column = (this->column + currentCharWidth) % this->width;
+
+        if (this->column == 0) {
+            this->line = (this->line + 1) % (this->height/8);
+        }
+
+
     }
 
-    // Output one column at a time...
-    for (uint8_t i = 0; i < 5; i++) {
-        this->send(PCD8544_DATA, this->inverse_output ? ~glyph[i] : glyph[i]);
-    }
-
-    // One column between characters...
-    this->send(PCD8544_DATA, this->inverse_output ? 0xff : 0x00);
-
-    // Update the cursor position...
-    this->column = (this->column + 6) % this->width;
-
-    if (this->column == 0) {
-        this->line = (this->line + 1) % (this->height/9 + 1);
-    }
 
     return 1;
 }
@@ -331,5 +341,13 @@ void PCD8544::send(uint8_t type, uint8_t data)
     digitalWrite(this->pin_sce, HIGH);
 }
 
+
+void PCD8544::setFont(const uint8_t* font) {
+    this->fontData = font;
+}
+
+uint8_t PCD8544::readFontData(const uint8_t* fontData, uint32_t offset) {
+    return pgm_read_byte(fontData + offset);
+}
 
 /* vim: set expandtab ts=4 sw=4: */

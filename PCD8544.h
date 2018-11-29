@@ -34,15 +34,33 @@
 #define CHIP_PCD8544 0
 #define CHIP_ST7576  1
 
+// Header Values
+#define JUMPTABLE_BYTES 4
+
+#define JUMPTABLE_LSB   1
+#define JUMPTABLE_SIZE  2
+#define JUMPTABLE_WIDTH 3
+#define JUMPTABLE_START 4
+
+#define WIDTH_POS      0
+#define HEIGHT_POS     1
+#define FIRST_CHAR_POS 2
+#define CHAR_NUM_POS   3
+
+#define LCD_RESET   3
+#define LCD_DC      5
+#define LCD_DATA_IN 6
+#define LCD_CLK     7
+#define LCD_CS      4
 
 class PCD8544: public Print {
     public:
         // All the pins can be changed from the default values...
-        PCD8544(uint8_t sclk  = 3,   /* clock       (display pin 2) */
-                uint8_t sdin  = 4,   /* data-in     (display pin 3) */
+        PCD8544(uint8_t sclk  = 7,   /* clock       (display pin 2) */
+                uint8_t sdin  = 6,   /* data-in     (display pin 3) */
                 uint8_t dc    = 5,   /* data select (display pin 4) */
-                uint8_t reset = 6,   /* reset       (display pin 8) */
-                uint8_t sce   = 7);  /* enable      (display pin 5) */
+                uint8_t reset = 3,   /* reset       (display pin 8) */
+                uint8_t sce   = 4);  /* enable      (display pin 5) */
 
         // Display initialization (dimensions in pixels)...
         void begin(uint8_t width=84, uint8_t height=48, uint8_t model=CHIP_PCD8544);
@@ -84,6 +102,9 @@ class PCD8544: public Print {
         // Draw a chart element at the current cursor position...
         void drawColumn(uint8_t lines, uint8_t value);
 
+        // Set the current font data
+        void setFont(const uint8_t*);
+
     private:
         uint8_t pin_sclk;
         uint8_t pin_sdin;
@@ -107,9 +128,13 @@ class PCD8544: public Print {
 
         // User-defined glyphs (below the ASCII space character)...
         const uint8_t *custom[' '];
+        const uint8_t* fontData; 
 
         // Send a command or data to the display...
         void send(uint8_t type, uint8_t data);
+
+        // Read the font header data
+        uint8_t readFontData(const uint8_t* fontData, uint32_t offset);
 };
 
 
